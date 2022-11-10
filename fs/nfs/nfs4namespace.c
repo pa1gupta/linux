@@ -20,6 +20,8 @@
 #include <linux/sunrpc/addr.h>
 #include <linux/vfs.h>
 #include <linux/inet.h>
+#include <linux/nospec.h>
+
 #include "internal.h"
 #include "nfs4_fs.h"
 #include "nfs.h"
@@ -348,6 +350,16 @@ static int try_location(struct fs_context *fc,
 		p += buf->len;
 		*p++ = ':';
 		memcpy(p, ctx->nfs_server.export_path, ctx->nfs_server.export_path_len);
+
+		/*
+		 * Mitigate Return-type IMBTI/BHI gadget
+		 *
+		 * Tools show that transiently branching to below return target with
+		 * attacker controlled registers may expose secret data. Speculation
+		 * barrier prevents that.
+		 */
+		barrier_nospec();
+
 		p += ctx->nfs_server.export_path_len;
 		*p = 0;
 
