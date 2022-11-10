@@ -11,6 +11,7 @@
 #include <linux/blk-mq.h>
 #include <linux/module.h>
 #include <linux/sbitmap.h>
+#include <linux/nospec.h>
 
 #include <trace/events/block.h>
 
@@ -572,7 +573,12 @@ static bool kyber_bio_merge(struct request_queue *q, struct bio *bio,
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	struct kyber_hctx_data *khd = hctx->sched_data;
-	struct kyber_ctx_queue *kcq = &khd->kcqs[ctx->index_hw[hctx->type]];
+	/*
+	 * array_index_nospec() is needed to prevent the memory access from
+	 * being used as a disclosure gadget if executed speculatively
+	 */
+	int index = array_index_nospec(hctx->type, HCTX_MAX_TYPES);
+	struct kyber_ctx_queue *kcq = &khd->kcqs[ctx->index_hw[index]];
 	unsigned int sched_domain = kyber_sched_domain(bio->bi_opf);
 	struct list_head *rq_list = &kcq->rq_list[sched_domain];
 	bool merged;
