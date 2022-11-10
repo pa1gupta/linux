@@ -55,6 +55,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/crc32poly.h>
+#include <linux/nospec.h>
 
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -7895,7 +7896,7 @@ tg3_tso_bug_end:
 /* hard_start_xmit for all devices */
 static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct tg3 *tp = netdev_priv(dev);
+	struct tg3 *tp;
 	u32 len, entry, base_flags, mss, vlan = 0;
 	u32 budget;
 	int i = -1, would_hit_hwbug;
@@ -7907,6 +7908,15 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tcphdr *tcph = NULL;
 	__sum16 tcp_csum = 0, ip_csum = 0;
 	__be16 ip_tot_len = 0;
+
+	/* Mitigate IMBTI/BHI
+	 *
+	 * Tools show that transiently executing this function with attacker
+	 * controlled parameters may expose secret data.  Speculation
+	 * barrier prevents that.
+	 */
+	barrier_nospec();
+	tp = netdev_priv(dev);
 
 	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 	tnapi = &tp->napi[skb_get_queue_mapping(skb)];
