@@ -199,6 +199,9 @@ struct e1000_rx_ring {
 #define E1000_TX_DESC(R, i)		E1000_GET_DESC(R, i, e1000_tx_desc)
 #define E1000_CONTEXT_DESC(R, i)	E1000_GET_DESC(R, i, e1000_context_desc)
 
+/* Randomly chosen, used for Branch Target Injection mitigation */
+#define E1000_SPEC_MAGIC	0xDF349A14UL
+
 /* board specific private data structure */
 
 struct e1000_adapter {
@@ -299,6 +302,9 @@ struct e1000_adapter {
 	struct delayed_work watchdog_task;
 	struct delayed_work fifo_stall_task;
 	struct delayed_work phy_info_task;
+
+	/* Magic value for Branch Target Injection mitigation */
+	u32 spec_magic;
 };
 
 enum e1000_state_t {

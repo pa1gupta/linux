@@ -7,6 +7,7 @@
 #include <linux/prefetch.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
+#include <linux/nospec.h>
 
 char e1000_driver_name[] = "e1000";
 static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
@@ -968,6 +969,8 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 	adapter->bars = bars;
 	adapter->need_ioport = need_ioport;
+	/* Magic number used to mitigate e1000_* against Branch Target Injection */
+	adapter->spec_magic = E1000_SPEC_MAGIC;
 
 	hw = &adapter->hw;
 	hw->back = adapter;
@@ -3797,6 +3800,9 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter,
 						     napi);
 	int tx_clean_complete = 0, work_done = 0;
+
+	 /* Mitigate Branch Target Injection, zero-out adapter when adapter->spec_magic number does not match. */
+	adapter = magic_neq_nospec(adapter, E1000_SPEC_MAGIC);
 
 	tx_clean_complete = e1000_clean_tx_irq(adapter, &adapter->tx_ring[0]);
 
