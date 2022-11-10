@@ -7,6 +7,8 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 #include <linux/vgaarb.h>
+#include <linux/nospec.h>
+
 #include <asm/hpet.h>
 #include <asm/pci_x86.h>
 
@@ -215,6 +217,9 @@ static int quirk_pcie_aspm_read(struct pci_bus *bus, unsigned int devfn, int whe
 static int quirk_pcie_aspm_write(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 value)
 {
 	u8 offset;
+
+	/* Mitigate BHI - some tools identify this function as a gadget */
+	barrier_nospec();
 
 	offset = quirk_aspm_offset[GET_INDEX(bus->self->device, devfn)];
 
