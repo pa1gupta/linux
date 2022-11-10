@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/slab.h>
 #include <linux/serial_core.h>
+#include <linux/nospec.h>
 
 #include <linux/uaccess.h>
 
@@ -196,6 +197,9 @@ static void hvc_console_print(struct console *co, const char *b,
 
 static struct tty_driver *hvc_console_device(struct console *c, int *index)
 {
+	/* Prevent speculative access of out-of-bound memory */
+	c->index = array_index_nospec(c->index, MAX_NR_HVC_CONSOLES);
+
 	if (vtermnos[c->index] == -1)
 		return NULL;
 
