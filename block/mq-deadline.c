@@ -16,6 +16,7 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
 #include <linux/sbitmap.h>
+#include <linux/nospec.h>
 
 #include <trace/events/block.h>
 
@@ -207,8 +208,20 @@ static void dd_merged_requests(struct request_queue *q, struct request *req,
 			       struct request *next)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
-	const u8 ioprio_class = dd_rq_ioclass(next);
-	const enum dd_prio prio = ioprio_class_to_prio[ioprio_class];
+	enum dd_prio prio;
+	u8 ioprio_class;
+
+	/*
+	 * Mitigate BHI on x86
+	 *
+	 * Tools show that transiently executing this function with attacker
+	 * controlled "next" pointer may expose secret data. Speculation barrier
+	 * prevents that.
+	 */
+	barrier_nospec();
+
+	ioprio_class = dd_rq_ioclass(next);
+	prio = ioprio_class_to_prio[ioprio_class];
 
 	lockdep_assert_held(&dd->lock);
 
