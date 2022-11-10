@@ -64,6 +64,54 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 #define barrier_nospec()	do { } while (0)
 #endif
 
+/*
+ * neq_mask_nospec() - generate a 0 mask when x != y, otherwise x
+ * @x: First value
+ * @y: Second value
+ */
+static inline unsigned long neq_mask_nospec(unsigned long x, unsigned long y)
+{
+	/*
+	 * Always calculate and emit the mask even if the compiler
+	 * thinks the mask is not needed. The compiler does not take
+	 * into account the value of @x and @y under speculation.
+	 */
+	OPTIMIZER_HIDE_VAR(x);
+	OPTIMIZER_HIDE_VAR(y);
+	return ((long)((x ^ y) ^ ((x ^ y) - 1))) >> (BITS_PER_LONG - 1);
+}
+
+/*
+ * magic_neq_nospec - sanitize a struct pointer by comparing p->spec_magic
+ *		      with a build time constant. If equal, p is returned,
+ *		      otherwise 0.
+ *
+ * For a code sequence like:
+ *
+ *         p = magic_neq_nospec(p, MAGIC);
+ *         x = p->val;
+ *
+ * ...if the CPU speculates on a wrong value of p, magic_neq_nospec() will
+ *    zero-out p and subsequent accesses using p can't be controlled.
+ *
+ *    User of this macro has to ensure that p->spec_magic exists and is
+ *    initialized to MAGIC(ideally in some init code) before magic_neq_nospec()
+ *    is invoked.
+ */
+#define magic_neq_nospec(p, magic)						\
+({										\
+	typeof(p) _p = (p);							\
+	typeof(_p->spec_magic) _p_spec_magic = (_p->spec_magic);		\
+	typeof(magic) _magic = (magic);						\
+	unsigned long _mask = neq_mask_nospec(_p_spec_magic, _magic);		\
+										\
+	BUILD_BUG_ON(sizeof(_p_spec_magic) > sizeof(long));			\
+	BUILD_BUG_ON(sizeof(_magic) > sizeof(long));				\
+	BUILD_BUG_ON(sizeof(_p) > sizeof(long));				\
+										\
+	(typeof(_p))((unsigned long)_p & _mask);				\
+})
+
 /* Speculation control prctl */
 int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which);
 int arch_prctl_spec_ctrl_set(struct task_struct *task, unsigned long which,
