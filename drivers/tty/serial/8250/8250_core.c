@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/nospec.h>
 #ifdef CONFIG_SPARC
 #include <linux/sunserialcore.h>
 #endif
@@ -608,6 +609,9 @@ static int univ8250_console_setup(struct console *co, char *options)
 static int univ8250_console_exit(struct console *co)
 {
 	struct uart_port *port;
+
+	/* Prevent speculative access of out-of-bound memory */
+	co->index = array_index_nospec(co->index, UART_NR);
 
 	port = &serial8250_ports[co->index].port;
 	return serial8250_console_exit(port);
