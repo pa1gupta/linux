@@ -26,6 +26,7 @@
 #include <linux/aer.h>
 #include <linux/prefetch.h>
 #include <linux/suspend.h>
+#include <linux/nospec.h>
 
 #include "e1000.h"
 
@@ -1688,14 +1689,14 @@ static void e1000_clean_rx_ring(struct e1000_ring *rx_ring)
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
-			if (adapter->clean_rx == e1000_clean_rx_irq)
+			if (adapter->clean_rx_type == E1000_CLEAN_RX_IRQ)
 				dma_unmap_single(&pdev->dev, buffer_info->dma,
 						 adapter->rx_buffer_len,
 						 DMA_FROM_DEVICE);
-			else if (adapter->clean_rx == e1000_clean_jumbo_rx_irq)
+			else if (adapter->clean_rx_type == E1000_CLEAN_RX_IRQ_JUMBO)
 				dma_unmap_page(&pdev->dev, buffer_info->dma,
 					       PAGE_SIZE, DMA_FROM_DEVICE);
-			else if (adapter->clean_rx == e1000_clean_rx_irq_ps)
+			else if (adapter->clean_rx_type == E1000_CLEAN_RX_IRQ_PS)
 				dma_unmap_single(&pdev->dev, buffer_info->dma,
 						 adapter->rx_ps_bsize0,
 						 DMA_FROM_DEVICE);
@@ -2679,7 +2680,12 @@ static int e1000e_poll(struct napi_struct *napi, int budget)
 	    (adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))
 		tx_cleaned = e1000_clean_tx_irq(adapter->tx_ring);
 
-	adapter->clean_rx(adapter->rx_ring, &work_done, budget);
+	if (adapter->clean_rx_type == E1000_CLEAN_RX_IRQ)
+		e1000_clean_rx_irq(adapter->rx_ring, &work_done, budget);
+	else if (adapter->clean_rx_type == E1000_CLEAN_RX_IRQ_JUMBO)
+		e1000_clean_jumbo_rx_irq(adapter->rx_ring, &work_done, budget);
+	else if (adapter->clean_rx_type == E1000_CLEAN_RX_IRQ_PS)
+		e1000_clean_rx_irq_ps(adapter->rx_ring, &work_done, budget);
 
 	if (!tx_cleaned || work_done == budget)
 		return budget;
@@ -3204,15 +3210,15 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 		/* this is a 32 byte descriptor */
 		rdlen = rx_ring->count *
 		    sizeof(union e1000_rx_desc_packet_split);
-		adapter->clean_rx = e1000_clean_rx_irq_ps;
+		adapter->clean_rx_type = E1000_CLEAN_RX_IRQ_PS;
 		adapter->alloc_rx_buf = e1000_alloc_rx_buffers_ps;
 	} else if (adapter->netdev->mtu > ETH_FRAME_LEN + ETH_FCS_LEN) {
 		rdlen = rx_ring->count * sizeof(union e1000_rx_desc_extended);
-		adapter->clean_rx = e1000_clean_jumbo_rx_irq;
+		adapter->clean_rx_type = E1000_CLEAN_RX_IRQ_JUMBO;
 		adapter->alloc_rx_buf = e1000_alloc_jumbo_rx_buffers;
 	} else {
 		rdlen = rx_ring->count * sizeof(union e1000_rx_desc_extended);
-		adapter->clean_rx = e1000_clean_rx_irq;
+		adapter->clean_rx_type = E1000_CLEAN_RX_IRQ;
 		adapter->alloc_rx_buf = e1000_alloc_rx_buffers;
 	}
 

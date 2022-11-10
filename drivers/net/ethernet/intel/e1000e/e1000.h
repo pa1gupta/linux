@@ -186,6 +186,12 @@ struct e1000_phy_regs {
 	u16 estatus;		/* extended status register       */
 };
 
+enum e1000_clean_rx_type {
+	E1000_CLEAN_RX_IRQ,
+	E1000_CLEAN_RX_IRQ_PS,
+	E1000_CLEAN_RX_IRQ_JUMBO,
+};
+
 /* board specific private data structure */
 struct e1000_adapter {
 	struct timer_list watchdog_timer;
@@ -251,8 +257,7 @@ struct e1000_adapter {
 	u32 tx_hwtstamp_skipped;
 
 	/* Rx */
-	bool (*clean_rx)(struct e1000_ring *ring, int *work_done,
-			 int work_to_do) ____cacheline_aligned_in_smp;
+	enum e1000_clean_rx_type clean_rx_type;
 	void (*alloc_rx_buf)(struct e1000_ring *ring, int cleaned_count,
 			     gfp_t gfp);
 	struct e1000_ring *rx_ring;
