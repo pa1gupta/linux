@@ -60,6 +60,10 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 	(typeof(_i)) (_i & _mask);					\
 })
 
+#ifndef barrier_nospec
+#define barrier_nospec()	do { } while (0)
+#endif
+
 /* Speculation control prctl */
 int arch_prctl_spec_ctrl_get(struct task_struct *task, unsigned long which);
 int arch_prctl_spec_ctrl_set(struct task_struct *task, unsigned long which,
