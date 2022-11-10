@@ -11,6 +11,7 @@
 #include <linux/moduleparam.h>
 #include <linux/ieee80211.h>
 #include <linux/minmax.h>
+#include <linux/nospec.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "sta_info.h"
@@ -1998,6 +1999,14 @@ static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
 {
 	struct minstrel_ht_sta *mi = priv_sta;
 	int i, j, prob, tp_avg;
+
+	/*
+	 * Protect against Branch Target Injection (BTI) and its variants.
+	 *
+	 * Transiently executing this function with an adversary controlled
+	 * argument may disclose secrets. Speculation barrier prevents that.
+	 */
+	barrier_nospec();
 
 	i = MI_RATE_GROUP(mi->max_tp_rate[0]);
 	j = MI_RATE_IDX(mi->max_tp_rate[0]);
