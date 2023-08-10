@@ -2432,6 +2432,7 @@ static void __init srso_select_mitigation(void)
 
 	switch (srso_cmd) {
 	case SRSO_CMD_OFF:
+		goto print.
 		return;
 
 	case SRSO_CMD_MICROCODE:
